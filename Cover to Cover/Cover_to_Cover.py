@@ -2,6 +2,7 @@ import csv
 import random
 import urllib.request
 import io
+import os
 from tkinter import *
 from tkinter.ttk import *
 from PIL import Image, ImageTk
@@ -10,10 +11,13 @@ random_book = NONE
 show_info = False
 books = []
 myLikedGenres = []
+# get current working directory
+cwd = os.getcwd()
+folderPath = os.path.join(cwd, 'resources')
 
 # Parse CSV and store all genres in a list
 genres = []
-with open('C:\\Users\\alext\\Downloads\\books\\books.csv', encoding='utf-8') as csv_file:
+with open(os.path.join(folderPath, 'books.csv'), encoding='utf-8') as csv_file:
     csv_reader = csv.DictReader(csv_file)
     for row in csv_reader:
         for genre in row['genres'].split(', '):
@@ -32,7 +36,7 @@ myGenre = genres[selection].replace("'", "").replace("[", "").replace("]", "")
 def rand_book():
     global random_book
     # Select a random book with the selected genre
-    with open('C:\\Users\\alext\\Downloads\\books\\books.csv', encoding='utf-8') as csv_file:
+    with open(os.path.join(folderPath, 'books.csv'), encoding='utf-8') as csv_file:
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             if myGenre in row['genres']:
@@ -44,7 +48,7 @@ rand_book()
 def update_book():
     rand_book()
     # Select a random book with the selected genre
-    with open('C:\\Users\\alext\\Downloads\\books\\books.csv', encoding='utf-8') as csv_file:
+    with open(os.path.join(folderPath, 'books.csv'), encoding='utf-8') as csv_file:
         csv_reader = csv.DictReader(csv_file)
         for row in csv_reader:
             if myGenre in row['genres']:
@@ -86,9 +90,6 @@ def show_book_info():
 root = Tk()
 root.title("Cover to Cover")
 
-# Set window attributes
-#root.attributes('-fullscreen', True)
-
 # Create labels and buttons
 title_lbl = Label(root, text=f"Title: {random_book['title']}", font=("Helvetica", 20))
 title_lbl.pack(pady=20)
@@ -107,12 +108,12 @@ cov_lbl = Label(root, image=cov_img)
 cov_lbl.image = cov_img
 cov_lbl.pack()
 
-x_btn_img = ImageTk.PhotoImage(Image.open("C:\\Users\\alext\\source\\repos\\Cover to Cover\\Cover to Cover\\resources\\x_btn.png").resize((128, 128)))
+x_btn_img = ImageTk.PhotoImage(Image.open(os.path.join(folderPath, "x_btn.png")).resize((128, 128)))
 x_btn = Button(root, image=x_btn_img, command=update_book)
 x_btn.image = x_btn_img
 x_btn.place(x=550, y=350)
 
-heart_btn_img = ImageTk.PhotoImage(Image.open("C:\\Users\\alext\\source\\repos\\Cover to Cover\\Cover to Cover\\resources\\heart_btn.png").resize((128, 128)))
+heart_btn_img = ImageTk.PhotoImage(Image.open(os.path.join(folderPath, "heart_btn.png")).resize((128, 128)))
 heart_btn = Button(root, image=heart_btn_img, command=show_book_info)
 heart_btn.image = heart_btn_img
 heart_btn.place(x=1225, y=350)
