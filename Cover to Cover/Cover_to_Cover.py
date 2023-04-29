@@ -127,7 +127,4 @@ description_lbl.pack(pady=10)
 pages_lbl = Label()
 pages_lbl.pack(pady=10)
 
-# Set window size to fit all widgets
-root.geometry("%dx%d" % (root.winfo_reqwidth(), root.winfo_reqheight()))
-
 root.mainloop()
