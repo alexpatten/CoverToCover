@@ -6,6 +6,9 @@ import os
 from tkinter import *
 from tkinter.ttk import *
 from PIL import Image, ImageTk
+import pyglet
+from pyglet import image, sprite
+from pyglet.window import mouse
 
 random_book = NONE
 show_info = False
@@ -47,87 +50,112 @@ rand_book()
 
 def update_book():
     rand_book()
-    # Select a random book with the selected genre
-    with open(os.path.join(folderPath, 'books.csv'), encoding='utf-8') as csv_file:
-        csv_reader = csv.DictReader(csv_file)
-        for row in csv_reader:
-            if myGenre in row['genres']:
-                books.append(row)
-    random_book = random.choice(books)
-
-    #Update title label
-    title_lbl.config(text=f"Title: {random_book['title']}", font=("Helvetica", 20))
 
     # Open the cover image in the program
     img_url = random_book['coverImg']
     with urllib.request.urlopen(img_url) as url:
         image_data = url.read()
 
-    # Create a file-like object from the image data
-    image_file = io.BytesIO(image_data)
-    cover = Image.open(image_file).resize((400, 600))
-    cov_img = ImageTk.PhotoImage(cover)
-    cov_lbl.configure(image=cov_img)
-    cov_lbl.image = cov_img
+    # Create a PIL image object from the image data
+    pil_image = Image.open(io.BytesIO(image_data))
 
+    # Resize the image to be 500x600
+    resized_image = pil_image.resize((300, 400))
+
+    # Convert the PIL image to a Pyglet image
+    pyglet_image = pyglet.image.ImageData(resized_image.width, resized_image.height, 'RGB', resized_image.tobytes(), pitch=resized_image.width * -3)
+    cov_lbl.image = pyglet_image
+
+#Function for updating additional information labels with data or null values
 def show_book_info():
+    #Variable for boolean value
     global show_info
+    #If boolean is false
     if show_info == False:
+        #Update boolean to true
         show_info = True
-        author_lbl.config(text=f"Author: {random_book['author']}", font=("Helvetica", 12))
-        rating_lbl.config(text=f"Rating: {random_book['rating']}", font=("Helvetica", 12))
-        description_lbl.config(text=f"Description: {random_book['description']}", font=("Helvetica", 12), anchor=CENTER)
-        pages_lbl.config(text=f"Pages: {random_book['pages']}", font=("Helvetica", 12))
+        #Update labels with data
+        author_lbl.text = f"Author: {random_book['author']}"
+        rating_lbl.text = f"Rating: {random_book['rating']}"
+        pages_lbl.text = f"Pages: {random_book['pages']}"
+        description_lbl.text = f"Description: {random_book['description']}"
     else:
+        #Update boolean to false
         show_info = False
-        author_lbl.config(text="")
-        rating_lbl.config(text="")
-        description_lbl.config(text="")
-        pages_lbl.config(text="")
+        #Update labels to null
+        author_lbl.text = ""
+        rating_lbl.text = ""
+        description_lbl.text = ""
+        pages_lbl.text = ""
+        #Update book title and image
         update_book()
 
-#Create UI
-root = Tk()
-root.title("Cover to Cover")
+# Create a window
+window = pyglet.window.Window(width=800, height=1080)
 
-# Create labels and buttons
-title_lbl = Label(root, text=f"Title: {random_book['title']}", font=("Helvetica", 20))
-title_lbl.pack(pady=20)
+# set the background color to white
+pyglet.gl.glClearColor(1, 1, 1, 1)
+
+# Create title label
+title_lbl = pyglet.text.Label(text=f"Title: {random_book['title']}", x = (window.width - 300) // 2, y = window.height - 30, color=(0, 0, 0, 255))
 
 # Open the cover image in the program
 img_url = random_book['coverImg']
 with urllib.request.urlopen(img_url) as url:
     image_data = url.read()
 
-# Create a file-like object from the image data
-image_file = io.BytesIO(image_data)
+# Create a PIL image object from the image data
+pil_image = Image.open(io.BytesIO(image_data))
 
-cover = Image.open(image_file).resize((400, 600))
-cov_img = ImageTk.PhotoImage(cover)
-cov_lbl = Label(root, image=cov_img)
-cov_lbl.image = cov_img
-cov_lbl.pack()
+# Resize the image to be 500x600
+resized_image = pil_image.resize((300, 400))
 
-x_btn_img = ImageTk.PhotoImage(Image.open(os.path.join(folderPath, "x_btn.png")).resize((128, 128)))
-x_btn = Button(root, image=x_btn_img, command=update_book)
-x_btn.image = x_btn_img
-x_btn.place(x=550, y=350)
+# Convert the PIL image to a Pyglet image
+pyglet_image = pyglet.image.ImageData(resized_image.width, resized_image.height, 'RGB', resized_image.tobytes(), pitch=resized_image.width * -3)
 
-heart_btn_img = ImageTk.PhotoImage(Image.open(os.path.join(folderPath, "heart_btn.png")).resize((128, 128)))
-heart_btn = Button(root, image=heart_btn_img, command=show_book_info)
-heart_btn.image = heart_btn_img
-heart_btn.place(x=1225, y=350)
+# Create the sprite and assign the new image to it
+cov_lbl = pyglet.sprite.Sprite(pyglet_image)
+cov_lbl.x = (window.width - cov_lbl.width) // 2
+cov_lbl.y = title_lbl.y - cov_lbl.height - 30
 
-author_lbl = Label()
-author_lbl.pack(pady=10)
-rating_lbl = Label()
-rating_lbl.pack(pady=10)
-description_lbl = Label(wraplength=800)
-description_lbl.pack(pady=10)
-pages_lbl = Label()
-pages_lbl.pack(pady=10)
+# X button
+x_btn_img = pyglet.image.load(os.path.join(folderPath, "x_btn.png"))
+x_btn = sprite.Sprite(x_btn_img)
+x_btn.scale = 64 / x_btn.width
+x_btn.x = cov_lbl.x - x_btn.width - 15
+x_btn.y = cov_lbl.y
 
-# Set window size to fit all widgets
-root.geometry("%dx%d" % (root.winfo_reqwidth(), root.winfo_reqheight()))
+# Heart button
+heart_btn_img = pyglet.image.load(os.path.join(folderPath, "heart_btn.png"))
+heart_btn = sprite.Sprite(heart_btn_img)
+heart_btn.scale = 64 / heart_btn.width
+heart_btn.x = cov_lbl.x + cov_lbl.width + 15
+heart_btn.y = cov_lbl.y
 
-root.mainloop()
+# Create other labels
+author_lbl = pyglet.text.Label(text="", x = cov_lbl.x - 30, y = cov_lbl.y - 30, color=(0, 0, 0, 255))
+rating_lbl = pyglet.text.Label(text="", x = cov_lbl.x - 30, y = author_lbl.y - 30, color=(0, 0, 0, 255))
+pages_lbl = pyglet.text.Label(text="", x = cov_lbl.x - 30, y = rating_lbl.y - 30, color=(0, 0, 0, 255))
+description_lbl = pyglet.text.Label(text="", x = cov_lbl.x - 30, y = pages_lbl.y - 30, width=360, multiline=True, color=(0, 0, 0, 255))
+
+@window.event
+def on_draw():
+    window.clear()
+    cov_lbl.draw()
+    x_btn.draw()
+    heart_btn.draw()
+    author_lbl.draw()
+    rating_lbl.draw()
+    description_lbl.draw()
+    pages_lbl.draw()
+    title_lbl.draw()
+
+@window.event
+def on_mouse_press(x, y, button, modifiers):
+    if button == pyglet.window.mouse.LEFT:
+        if x_btn.x <= x <= x_btn.x + x_btn.width and x_btn.y <= y <= x_btn.y + x_btn.height:
+            update_book()
+        elif heart_btn.x <= x <= heart_btn.x + heart_btn.width and heart_btn.y <= y <= heart_btn.y + heart_btn.height:
+            show_book_info()
+
+pyglet.app.run()
