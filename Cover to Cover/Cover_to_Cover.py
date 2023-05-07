@@ -10,6 +10,10 @@ from io import BytesIO
 cwd = os.getcwd()
 folderPath = os.path.join(cwd, 'resources')
 csv_path = os.path.join(folderPath, 'bisac.csv')
+# initialize set to keep track of previously generated random numbers
+generated_numbers = set()
+# initialize total books
+total_books = 0
 
 def get_options_from_csv(csv_path):
     options = []
@@ -50,19 +54,57 @@ canvas.pack(side="left", fill=BOTH, expand=True)
 
 label_list = []
 
+def count_books(event):
+    #Set global variable
+    global total_books
+    # Get the selected genre from the Listbox
+    selected_genre = event.widget.get(event.widget.curselection())
+    #Endpoint URL for Google Books API
+    endpoint = 'https://www.googleapis.com/books/v1/volumes'
+    #Parameters to send to API - Replace spaces with + and display 1 random result
+    params = {'q': f'subject:{selected_genre.replace(" ", "+")}', 'startIndex': '1', 'maxResults': '1'}
+    #Get request to API
+    response = requests.get(endpoint, params=params)
+
+    #If no error in response
+    if response.status_code == 200:
+        # Get total number of items
+        total_books = response.json().get('totalItems', 0)
+        # Check if total_books is greater than zero
+        if total_books > 0:
+            return True
+    return False
+
 def get_book_data(event, selected_genre):
+    if not count_books(event):
+        print("Genre does not have any results left to show.")
+        return
+
+    # generate random number until unique one is found
+    while True:
+        if len(generated_numbers) == total_books:
+            print("No more numbers can be selected.")
+            return  # return from the function
+        random_number = random.randint(1, total_books)
+        if random_number not in generated_numbers:
+            generated_numbers.add(random_number)
+            break
+
+
     # Clear the existing labels
     for label in label_list:
         label.destroy()
 
     # Get the selected genre from the Listbox
     selected_genre = event.widget.get(event.widget.curselection())
-
+    #Endpoint URL for Google Books API
     endpoint = 'https://www.googleapis.com/books/v1/volumes'
-    params = {'q': f'subject:{selected_genre.replace(" ", "+")}', 'startIndex': str(random.randint(1, 100)), 'maxResults': '1'}
-
+    #Parameters to send to API - Replace spaces with + and display 1 random result
+    params = {'q': f'subject:{selected_genre.replace(" ", "+")}', 'startIndex': str(random_number), 'maxResults': '1'}
+    #Get request to API
     response = requests.get(endpoint, params=params)
 
+    #If no error in response
     if response.status_code == 200:
         try:
             book_data = response.json()['items'][0]['volumeInfo']
@@ -87,7 +129,7 @@ def get_book_data(event, selected_genre):
 
             # Get the URL for the book cover image
             if "imageLinks" in book_data and "thumbnail" in book_data["imageLinks"]:
-                cover_url = book_data['imageLinks']['thumbnail'].replace('zoom=1', 'zoom=3')
+                cover_url = book_data['imageLinks']['thumbnail'] #.replace('zoom=1', 'zoom=3')
 
                 # Get the image data from the URL
                 response = requests.get(cover_url)
