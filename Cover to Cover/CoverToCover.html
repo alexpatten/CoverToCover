@@ -74,7 +74,7 @@
     <div class="text-container">
         <h3 id="titleLabel"></h3>
         <p id="authorLabel"></p>
-        <p id="subjectsLabel"></p>
+        <p id="pagesLabel"></p>
         <p id="descriptionLabel"></p>
     </div>
 
@@ -84,6 +84,8 @@
         const booksPerPage = 100;
         let totalBooks = 0;
         let currentISBN = null; // Variable to store the ISBN
+        // Get a reference to the select element
+        var genreCombo = document.getElementById("genreCombo");
 
         function getRandomBook() {
             if (totalBooks > 0 && seenBooks.size === totalBooks) {
@@ -120,20 +122,21 @@
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
             const authorLabel = $('#authorLabel');
+            const pagesLabel = $('#pagesLabel'); // Corrected selector
 
-            //If currentISBN is empty
-            if(!currentISBN) {
+            // If currentISBN is empty
+            if (!currentISBN) {
                 getRandomBook()
-                .then(book => {
-                    $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
-                    $('#authorLabel').text(`Author: ${book.author_name?.[0] || 'Unknown'}`);
-                    titleLabel.text(`Title: ${book.title || 'Unknown'}`);
-                    authorLabel.text(`Author: ${book.author || 'Unknown'}`);
-                    descriptionLabel.text('');
-                    currentISBN = book.isbn?.[0] || null; // Store the ISBN in the variable
-                });
+                    .then(book => {
+                        $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
+                        titleLabel.text(`Title: ${book.title || 'Unknown'}`);
+                        authorLabel.text(`Author: ${book.author_name || 'Unknown'}`);
+                        pagesLabel.text(''); //Empty pages
+                        descriptionLabel.text(''); //Empty description
+                        currentISBN = book.isbn?.[0] || null; // Store the ISBN in the variable
+                    });
             }
-            //If currentISBN is not empty
+            // If currentISBN is not empty
             else {
                 updateInfo(); // Call the updateInfo function to fetch book description
                 currentISBN = null;
@@ -143,6 +146,15 @@
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
         }
+
+
+        // Add an event listener to the select element
+        genreCombo.addEventListener("change", function () {
+            // Update currentISBN to null when the select element is changed
+            currentISBN = null;
+            // Call the updateBook function
+            updateBookDetails();
+        });
 
         function updateInfo() {
             if (currentISBN) {
@@ -155,19 +167,27 @@
                         if (data.totalItems > 0) {
                             const volumeInfo = data.items[0].volumeInfo;
                             const description = volumeInfo.description || 'None';
+                            const pageCount = volumeInfo.pageCount || 'Unknown'; // Retrieve the number of pages
+
                             $('#descriptionLabel').text(`Description: ${description}`);
+                            $('#pagesLabel').text(`Pages: ${pageCount}`); // Update the pagesLabel
                         } else {
                             $('#descriptionLabel').text('Description: None');
+                            $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown'
                         }
                     })
                     .catch(error => {
                         console.error(error);
                         $('#descriptionLabel').text('Description: None');
+                        $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' in case of an error
                     });
             } else {
                 $('#descriptionLabel').text('Description: None');
+                $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' when currentISBN is empty
             }
         }
+
+
 
         $(document).ready(function () {
             updateBookDetails(); // Call the function on page load
@@ -179,6 +199,8 @@
 
 
         $('#xButton').on('click', function () {
+            currentISBN = null;
+            updateBookDetails();
             $('#coverImage').addClass('hidden');
             $('#likeButton').removeClass('hidden');
             $('#xButton').addClass('hidden');
