@@ -26,17 +26,16 @@
             background-color: #008000;
             color: white;
             border-radius: 50%;
-            position: relative;
-            top: 0;
-            left: 0;
-            margin-left: -25px;
-            width: 50px;
-            height: 50px;
+            position: absolute;
+            top: calc(50% - 25px);
+            left: calc(80%);
+            width: 65px;
+            height: 65px;
         }
 
         #likeButton:before {
             content: "\2665";
-            font-size: 36px;
+            font-size: 48px;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -49,9 +48,9 @@
             border-radius: 50%;
             position: absolute;
             top: calc(50% - 25px);
-            right: 18%;
-            width: 50px;
-            height: 50px;
+            right: calc(80% + 10px);
+            width: 65px;
+            height: 65px;
         }
 
         .cover-container.liked #xButton {
@@ -70,7 +69,7 @@
     <div class="cover-container" style="margin-bottom: 10px;">
         <button id="likeButton"></button>
         <div id="coverImage"></div>
-        <button id="xButton">X</button>
+        <button id="xButton" style="font-size: 24px; font-weight: bold;">X</button>
     </div>
     <div class="text-container">
         <h3 id="titleLabel"></h3>
