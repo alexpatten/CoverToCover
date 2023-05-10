@@ -83,6 +83,7 @@
         let currentPage = 1;
         const booksPerPage = 100;
         let totalBooks = 0;
+        let currentISBN = null; // Variable to store the ISBN
 
         function getRandomBook() {
             if (totalBooks > 0 && seenBooks.size === totalBooks) {
@@ -115,21 +116,67 @@
                 });
         }
 
-        $('#likeButton').on('click', function () {
-            getRandomBook()
+        function updateBookDetails() {
+            const titleLabel = $('#titleLabel');
+            const descriptionLabel = $('#descriptionLabel');
+            const authorLabel = $('#authorLabel');
+
+            //If currentISBN is empty
+            if(!currentISBN) {
+                getRandomBook()
                 .then(book => {
                     $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
                     $('#authorLabel').text(`Author: ${book.author_name?.[0] || 'Unknown'}`);
-                    $('#titleLabel').text(`Title: ${book.title || 'Unknown'}`);
-                    $('#subjectsLabel').text(`Subjects: ${book.subject?.join(', ') || 'None'}`);
-                    const description = book.description?.[0];
-                    $('#descriptionLabel').text(`Description: ${description ? description : 'None'}`);
+                    titleLabel.text(`Title: ${book.title || 'Unknown'}`);
+                    authorLabel.text(`Author: ${book.author || 'Unknown'}`);
+                    descriptionLabel.text('');
+                    currentISBN = book.isbn?.[0] || null; // Store the ISBN in the variable
                 });
+            }
+            //If currentISBN is not empty
+            else {
+                updateInfo(); // Call the updateInfo function to fetch book description
+                currentISBN = null;
+            }
 
             $('#coverImage').removeClass('hidden');
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
+        }
+
+        function updateInfo() {
+            if (currentISBN) {
+                // Make a request to Google Books API to fetch book details based on ISBN
+                const googleBooksUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${currentISBN}`;
+
+                fetch(googleBooksUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.totalItems > 0) {
+                            const volumeInfo = data.items[0].volumeInfo;
+                            const description = volumeInfo.description || 'None';
+                            $('#descriptionLabel').text(`Description: ${description}`);
+                        } else {
+                            $('#descriptionLabel').text('Description: None');
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        $('#descriptionLabel').text('Description: None');
+                    });
+            } else {
+                $('#descriptionLabel').text('Description: None');
+            }
+        }
+
+        $(document).ready(function () {
+            updateBookDetails(); // Call the function on page load
+
+            $('#likeButton').on('click', function () {
+                updateBookDetails(); // Call the function when the button is clicked
+            });
         });
+
 
         $('#xButton').on('click', function () {
             $('#coverImage').addClass('hidden');
