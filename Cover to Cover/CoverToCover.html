@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>My Page</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .centered {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cover-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .cover-container.liked {
+            position: relative;
+        }
+
+        #likeButton {
+            background-color: #008000;
+            color: white;
+            border-radius: 50%;
+            position: relative;
+            top: 0;
+            left: 0;
+            margin-left: -25px;
+            width: 50px;
+            height: 50px;
+        }
+
+        #likeButton:before {
+            content: "\2665";
+            font-size: 36px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #xButton {
+            background-color: #FF4500;
+            color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: calc(50% - 25px);
+            right: 18%;
+            width: 50px;
+            height: 50px;
+        }
+
+        .cover-container.liked #xButton {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="centered" style="margin-bottom: 10px;">
+        <label for="subjects" style="margin-right: 5px;">Select a subject:</label>
+        <select id="genreCombo" style="margin-left: 5px;"></select>
+    </div>
+    <div class="cover-container" style="margin-bottom: 10px;">
+        <button id="likeButton"></button>
+        <div id="coverImage"></div>
+        <button id="xButton">X</button>
+    </div>
+    <div class="text-container">
+        <h3 id="titleLabel"></h3>
+        <p id="authorLabel"></p>
+        <p id="subjectsLabel"></p>
+        <p id="descriptionLabel"></p>
+    </div>
+
+    <script>
+        let seenBooks = new Set();
+        let currentPage = 1;
+        const booksPerPage = 100;
+        let totalBooks = 0;
+
+        function getRandomBook() {
+            if (totalBooks > 0 && seenBooks.size === totalBooks) {
+                console.log('All books seen, resetting set.');
+                seenBooks.clear();
+                currentPage = 1;
+            }
+
+            const startIndex = (currentPage - 1) * booksPerPage;
+            const selectedGenre = document.getElementById('genreCombo').value;
+            const url = `https://openlibrary.org/search.json?q=subject:${selectedGenre}&limit=${booksPerPage}&start=${startIndex}`;
+
+            return fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    totalBooks = data.numFound;
+                    const books = data.docs.filter(book => !seenBooks.has(book.key));
+                    if (books.length === 0) {
+                        console.log('No unseen books found on current page.');
+                        currentPage++;
+                        return getRandomBook();
+                    }
+                    const randomIndex = Math.floor(Math.random() * books.length);
+                    const randomBook = books[randomIndex];
+                    seenBooks.add(randomBook.key);
+                    return randomBook;
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+        }
+
+        $('#likeButton').on('click', function () {
+            getRandomBook()
+                .then(book => {
+                    $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
+                    $('#authorLabel').text(`Author: ${book.author_name?.[0] || 'Unknown'}`);
+                    $('#titleLabel').text(`Title: ${book.title || 'Unknown'}`);
+                    $('#subjectsLabel').text(`Subjects: ${book.subject?.join(', ') || 'None'}`);
+                    const description = book.description?.[0];
+                    $('#descriptionLabel').text(`Description: ${description ? description : 'None'}`);
+                });
+
+            $('#coverImage').removeClass('hidden');
+            $('#likeButton').addClass('hidden');
+            $('#xButton').removeClass('hidden');
+        });
+
+        $('#xButton').on('click', function () {
+            $('#coverImage').addClass('hidden');
+            $('#likeButton').removeClass('hidden');
+            $('#xButton').addClass('hidden');
+        });
+
+
+        // Adding a new image box element to the DOM
+        const coverImageBox = $('<div></div>').attr('id', 'coverImageBox').insertAfter('#likeButton');
+
+        // Adding a cover image element to the new image box element
+        const coverImage = $('<div></div>').attr('id', 'coverImage').appendTo(coverImageBox);
+
+        // Adding an X button element to the new image box element
+        const xButton = $('<button>X</button>').attr('id', 'xButton').appendTo(coverImageBox);
+
+        // Styling the new image box and cover image
+        $('#coverImageBox').css({
+            'display': 'inline-flex',
+            'width': '310px',
+            'height': '450px',
+            'margin-right': '10px',
+            'background-color': '#f2f2f2',
+            'background-size': 'cover',
+            'background-position': 'center',
+            'justify-content': 'center',
+            'align-items': 'center',
+        });
+
+        $('#coverImage').css({
+            'width': '510px',
+            'height': '450px',
+            'background-size': 'cover',
+            'background-position': 'center',
+        });
+
+        $('#xButton').css({
+            'margin-left': '10px',
+        });
+
+
+    </script>
+</body>
+
+</html>

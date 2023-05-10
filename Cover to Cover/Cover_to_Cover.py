@@ -90,7 +90,6 @@ def get_book_data(event, selected_genre):
             generated_numbers.add(random_number)
             break
 
-
     # Clear the existing labels
     for label in label_list:
         label.destroy()
