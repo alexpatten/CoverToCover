@@ -60,9 +60,9 @@
         }
 
         .image-container {
-            position: absolute;
+            position: relative;
             display: flex;
-            gap: 30px;
+            gap: 50px;
             align-items: center;
         }
     </style>
@@ -86,15 +86,21 @@
     </div>
     <div class="image-container">
         <p id="amazonImg">
-            <a href="">
+            <a>
                 <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image"
-                    style="width: 440; height: 140px; margin-bottom: 50px;">
+                    style="width: 440px; height: 140px; margin-bottom: 10px;">
             </a>
         </p>
-        <p id="">
-            <a href="">
+        <p id="goodReadsImg">
+            <a>
                 <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image"
-                    style="width: 256; height: 140px; margin-bottom: 50px;">
+                    style="width: 256px; height: 170px; margin-bottom: 10px;">
+            </a>
+        </p>
+        <p id="googleImg">
+            <a>
+                <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/google.png" alt="Google Image"
+                    style="width: 256px; height: 60px; margin-bottom: 10px;">
             </a>
         </p>
     </div>
@@ -144,24 +150,33 @@
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
             const authorLabel = $('#authorLabel');
-            const pagesLabel = $('#pagesLabel'); // Corrected selector
+            const pagesLabel = $('#pagesLabel');
+            const amazonImg = $('#amazonImg a');
+            const goodReadsImg = $('#goodReadsImg a');
 
-            // If currentISBN is empty
             if (!currentISBN) {
                 getRandomBook()
                     .then(book => {
                         const isbn = book.isbn?.[0] || null;
-                        currentISBN = isbn.length === 13 ? isbn.substring(3) : isbn; // Remove first 3 characters if the ISBN has 13 characters
+                        currentISBN = isbn.length === 13 ? isbn.substring(3) : isbn;
                         $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
                         titleLabel.text(`Title: ${book.title || 'Unknown'}`);
                         authorLabel.text(`Author: ${book.author_name || 'Unknown'}`);
-                        pagesLabel.text(''); // Empty pages
-                        descriptionLabel.text(''); // Empty description
+                        descriptionLabel.text('');
+                        pagesLabel.text('');
+                        amazonImg.removeAttr('href');
+                        goodReadsImg.removeAttr('href');
                     });
-            }
-            // If currentISBN is not empty
-            else {
-                updateInfo(); // Call the updateInfo function to fetch book description
+            } else {
+                updateInfo();
+                const title = encodeURIComponent(`"${titleLabel.text().trim().replace('Title: ', '')}"`); // Encode the title
+                const author = encodeURIComponent(`"${authorLabel.text().trim().replace('Author: ', '')}"`); // Encode the author
+                const amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
+                const goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
+                // Add href to anchor tags
+                amazonImg.attr('href', amazonUrl).attr('target', '_blank');
+                goodReadsImg.attr('href', goodreadsUrl).attr('target', '_blank');
+
                 currentISBN = null;
             }
 
@@ -169,6 +184,7 @@
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
         }
+
 
         // Add an event listener to the select element
         genreCombo.addEventListener("change", function () {
@@ -190,22 +206,27 @@
                             const volumeInfo = data.items[0].volumeInfo;
                             const description = volumeInfo.description || 'None';
                             const pageCount = volumeInfo.pageCount || 'Unknown'; // Retrieve the number of pages
+                            const previewLink = volumeInfo.previewLink || null; // Retrieve the previewLink
 
                             $('#descriptionLabel').text(`Description: ${description}`);
                             $('#pagesLabel').text(`Pages: ${pageCount}`); // Update the pagesLabel
+                            $('#googleImg a').attr('href', previewLink).attr('target', '_blank'); // Update href of googleImg with previewLink
                         } else {
                             $('#descriptionLabel').text('Description: None');
                             $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown'
+                            $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
                         }
                     })
                     .catch(error => {
                         console.error(error);
                         $('#descriptionLabel').text('Description: None');
                         $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' in case of an error
+                        $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
                     });
             } else {
                 $('#descriptionLabel').text('Description: None');
                 $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' when currentISBN is empty
+                $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
             }
         }
 
@@ -258,8 +279,6 @@
         $('#xButton').css({
             'margin-left': '10px',
         });
-
-
     </script>
 </body>
 
