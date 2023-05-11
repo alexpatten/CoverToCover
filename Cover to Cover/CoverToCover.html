@@ -58,6 +58,13 @@
             top: 0;
             right: 0;
         }
+
+        .image-container {
+            position: absolute;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -76,6 +83,20 @@
         <p id="authorLabel"></p>
         <p id="pagesLabel"></p>
         <p id="descriptionLabel"></p>
+    </div>
+    <div class="image-container">
+        <p id="amazonImg">
+            <a href="">
+                <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image"
+                    style="width: 440; height: 140px; margin-bottom: 50px;">
+            </a>
+        </p>
+        <p id="">
+            <a href="">
+                <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image"
+                    style="width: 256; height: 140px; margin-bottom: 50px;">
+            </a>
+        </p>
     </div>
 
     <script>
@@ -96,7 +117,8 @@
 
             const startIndex = (currentPage - 1) * booksPerPage;
             const selectedGenre = document.getElementById('genreCombo').value;
-            const url = `https://openlibrary.org/search.json?q=subject:${selectedGenre}&limit=${booksPerPage}&start=${startIndex}`;
+            const encodedGenre = selectedGenre.replace(/\s/g, '%20'); // Replace spaces with %20
+            const url = `https://openlibrary.org/search.json?q=subject:${encodedGenre}&limit=${booksPerPage}&start=${startIndex}`;
 
             return fetch(url)
                 .then(response => response.json())
@@ -104,7 +126,7 @@
                     totalBooks = data.numFound;
                     const books = data.docs.filter(book => !seenBooks.has(book.key));
                     if (books.length === 0) {
-                        console.log('No unseen books found on current page.');
+                        console.log('No unseen books found on the current page.');
                         currentPage++;
                         return getRandomBook();
                     }
@@ -128,12 +150,13 @@
             if (!currentISBN) {
                 getRandomBook()
                     .then(book => {
+                        const isbn = book.isbn?.[0] || null;
+                        currentISBN = isbn.length === 13 ? isbn.substring(3) : isbn; // Remove first 3 characters if the ISBN has 13 characters
                         $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
                         titleLabel.text(`Title: ${book.title || 'Unknown'}`);
                         authorLabel.text(`Author: ${book.author_name || 'Unknown'}`);
-                        pagesLabel.text(''); //Empty pages
-                        descriptionLabel.text(''); //Empty description
-                        currentISBN = book.isbn?.[0] || null; // Store the ISBN in the variable
+                        pagesLabel.text(''); // Empty pages
+                        descriptionLabel.text(''); // Empty description
                     });
             }
             // If currentISBN is not empty
@@ -146,7 +169,6 @@
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
         }
-
 
         // Add an event listener to the select element
         genreCombo.addEventListener("change", function () {
@@ -187,8 +209,6 @@
             }
         }
 
-
-
         $(document).ready(function () {
             updateBookDetails(); // Call the function on page load
 
@@ -197,15 +217,14 @@
             });
         });
 
-
         $('#xButton').on('click', function () {
             currentISBN = null;
+            $('#descriptionLabel').text(''); // Clear the descriptionLabel
             updateBookDetails();
             $('#coverImage').addClass('hidden');
             $('#likeButton').removeClass('hidden');
             $('#xButton').addClass('hidden');
         });
-
 
         // Adding a new image box element to the DOM
         const coverImageBox = $('<div></div>').attr('id', 'coverImageBox').insertAfter('#likeButton');
