@@ -65,10 +65,46 @@
             gap: 50px;
             align-items: center;
         }
+
+        .loader-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loader-container img {
+            position: relative;
+            width: 200px;
+            height: 190px;
+        }
+
+        .loader-container label {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-weight: bold;
+            padding: 5px;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 
 <body>
+    <div class="loader-container">
+        <img src="http://www.alexpatten.me/wp-content/uploads/2023/05/bookload.gif" alt="Loader"
+            style="width: 200px; height: 190px;">
+        <label>Loading...</label>
+    </div>
     <div class="centered" style="margin-bottom: 10px;">
         <label for="subjects" style="margin-right: 5px;">Select a subject:</label>
         <select id="genreCombo" style="margin-left: 5px;"></select>
@@ -147,6 +183,7 @@
         }
 
         function updateBookDetails() {
+            const loaderContainer = document.querySelector('.loader-container');
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
             const authorLabel = $('#authorLabel');
@@ -154,11 +191,13 @@
             const amazonImg = $('#amazonImg a');
             const goodReadsImg = $('#goodReadsImg a');
 
+            loaderContainer.style.display = 'flex';
+
             if (!currentISBN) {
                 getRandomBook()
                     .then(book => {
                         const isbn = book.isbn?.[0] || null;
-                        currentISBN = isbn.length === 13 ? isbn.substring(3) : isbn;
+                        currentISBN = isbn ? (isbn.length === 13 ? isbn.substring(3) : isbn) : null;
                         $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
                         titleLabel.text(`Title: ${book.title || 'Unknown'}`);
                         authorLabel.text(`Author: ${book.author_name || 'Unknown'}`);
@@ -166,6 +205,9 @@
                         pagesLabel.text('');
                         amazonImg.removeAttr('href');
                         goodReadsImg.removeAttr('href');
+
+                        // Hide the loader container after the async operation is complete
+                        loaderContainer.style.display = 'none';
                     });
             } else {
                 updateInfo();
@@ -195,6 +237,7 @@
         });
 
         function updateInfo() {
+            const loaderContainer = document.querySelector('.loader-container');
             if (currentISBN) {
                 // Make a request to Google Books API to fetch book details based on ISBN
                 const googleBooksUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${currentISBN}`;
@@ -216,17 +259,25 @@
                             $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown'
                             $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
                         }
+
+                        // Hide the loader container after the async operation is complete
+                        loaderContainer.style.display = 'none';
                     })
                     .catch(error => {
                         console.error(error);
                         $('#descriptionLabel').text('Description: None');
                         $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' in case of an error
                         $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
+                        // Hide the loader container after the async operation is complete
+                        loaderContainer.style.display = 'none';
                     });
             } else {
                 $('#descriptionLabel').text('Description: None');
                 $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' when currentISBN is empty
                 $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
+
+                // Hide the loader container after the async operation is complete
+                loaderContainer.style.display = 'none';
             }
         }
 
