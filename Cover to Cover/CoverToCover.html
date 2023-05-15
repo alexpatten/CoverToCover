@@ -112,10 +112,10 @@
             <option value="comedy">Comedy</option>
             <option value="drama">Drama</option>
             <option value="fantasy">Fantasy</option>
-            <option value="horror">Horror</option>
+            <option value="fiction">Fiction</option>
             <option value="romance">Romance</option>
-            <option value="science+fiction">Science Fiction</option>
-            <option value="young+adult">Young Adult</option>
+            <option value="science_fiction">Science Fiction</option>
+            <option value="young_adult">Young Adult</option>
         </select>
     </div>
     <div class="cover-container" style="margin-bottom: 10px;">
@@ -156,7 +156,8 @@
         let randomBook = null; // Declare randomBook as a global variable
         let bookIndexToRemove = null;
         let encodedGenre = ''; // Declare encodedGenre as a global variable
-        let moreInfo = null;
+        let moreInfo = false;
+        let updateDescription = null;
 
         function addRandomInteger() {
             const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
@@ -218,18 +219,33 @@
                         author_name: work.authors[0]?.name || 'Unknown Author',
                         title: work.title,
                         isbn: work.isbn,
-                        cover_id: work.cover_id
+                        cover_id: work.cover_id,
+                        description: '' // Add an empty description property
                     }));
 
                     // Fetch descriptions for each stored book using the Open Library Works API
-                    const descriptionPromises = storedBooks.map(book =>
-                        fetch(`https://openlibrary.org/works/${book.work_id}.json`)
-                            .then(response => response.json())
-                            .then(workData => {
-                                book.description = workData.description ? workData.description.value : 'No description available';
-                                return book;
-                            })
-                    );
+                    const descriptionPromises = storedBooks.map((book, index) => {
+                        if (book.description === '') { // Check if the description is empty
+                            const encodedTitle = encodeURIComponent(book.title);
+                            const encodedAuthor = encodeURIComponent(book.author_name);
+
+                            // Call the Google Books API using the title and author
+                            return fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodedTitle}+inauthor:${encodedAuthor}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    // Extract the description from the API response if available
+                                    const description = data.items[0]?.volumeInfo?.description;
+                                    storedBooks[index].description = description || 'No description available';
+                                    return storedBooks[index];
+                                })
+                                .catch(error => {
+                                    console.log(error);
+                                    return book;
+                                });
+                        } else {
+                            return Promise.resolve(book);
+                        }
+                    });
 
                     // Wait for all description promises to resolve
                     return Promise.all(descriptionPromises)
@@ -244,7 +260,7 @@
                 });
         }
 
-        function updateBookDetails(moreInfo) {
+        function updateBookDetails(myBool) {
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
             const authorLabel = $('#authorLabel');
@@ -269,7 +285,7 @@
             const randomBook = storedBooks[randomIndex];
 
             // If more information is false
-            if (!moreInfo) {
+            if (!myBool) {
                 bookIndexToRemove = randomIndex;
                 amazonImg.removeAttr('href');
                 goodReadsImg.removeAttr('href');
@@ -287,16 +303,17 @@
 
                 const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
                 updateCoverImage(coverImageUrl);
-                // If more information is true
+
+                updateDescription = randomBook.description
             } else {
-                const title = encodeURIComponent(`"${titleLabel.text().trim().replace('Title: ', '')}"`);
-                const author = encodeURIComponent(`"${authorLabel.text().trim().replace('Author: ', '')}"`);
+                const title = encodeURIComponent(`"${randomBook.title}"`);
+                const author = encodeURIComponent(`"${randomBook.author_name}"`);
                 const amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
                 const goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
                 amazonImg.html(`<a href="${amazonUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image" style="width: 440px; height: 140px; margin-bottom: 10px;"></a>`);
                 goodReadsImg.html(`<a href="${goodreadsUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image" style="width: 256px; height: 170px; margin-bottom: 10px;"></a>`);
                 // Add description from randomBook to descriptionLabel
-                descriptionLabel.text(`Description: ${randomBook.description}`);
+                descriptionLabel.text(`Description: ${updateDescription}`);
 
                 // Remove the book from storedBooks using the stored index
                 if (bookIndexToRemove > -1) {
@@ -311,6 +328,8 @@
 
         // Function to update the cover image
         function updateCoverImage(imageUrl) {
+            const loaderContainer = document.querySelector('.loader-container');
+            loaderContainer.style.display = 'flex';
             const coverImageBox = $('#coverImageBox');
             const coverImage = $('#coverImage');
 
@@ -323,42 +342,39 @@
                 'background-size': 'cover',
                 'background-position': 'center',
             });
+
+            // Hide the loader container after the async operations are complete
+            loaderContainer.style.display = 'none';
         }
 
         $(document).ready(function () {
             function updateOnGenreChange() {
-                moreInfo = false;
+                storedBooks = [];
+                moreInfo = true;
                 const genreCombo = document.getElementById('genreCombo');
                 const selectedGenre = genreCombo.value;
                 encodedGenre = selectedGenre.replace(/\s/g, '%20');
-
+                $('#descriptionLabel').text(''); // Clear the descriptionLabel
                 getWorkCount(encodedGenre); // Call getWorkCount when genreCombo is changed
-                getRandomBook(encodedGenre).then(() => {
-                    // Call updateBookDetails when genreCombo is changed
-                    updateBookDetails(false);
-                });
+                updateBookDetails(false);
             }
 
             // Call updateOnGenreChange on page load
             updateOnGenreChange();
 
             $('#genreCombo').on('change', updateOnGenreChange);
+        });
 
-            $('#likeButton').on('click', function () {
-                if (moreInfo === null) {
-                    updateBookDetails(true); // Call the function when the button is clicked
-                    moreInfo = false;
-                }
-                else if (moreInfo) {
-                    updateBookDetails(true); // Call the function when the button is clicked
-                    moreInfo = false;
-                }
-                else {
-                    $('#descriptionLabel').text(''); // Clear the descriptionLabel
-                    updateBookDetails(false); // Call the function when the button is clicked
-                    moreInfo = true;
-                }
-            });
+        $('#likeButton').on('click', function () {
+            if (moreInfo) {
+                updateBookDetails(true); // Call the function when the button is clicked
+                moreInfo = false;
+            }
+            else {
+                $('#descriptionLabel').text(''); // Clear the descriptionLabel
+                updateBookDetails(false); // Call the function when the button is clicked
+                moreInfo = true;
+            }
         });
 
         $('#xButton').on('click', function () {
