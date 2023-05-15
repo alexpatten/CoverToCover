@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>My Page</title>
+    <title>Cover to Cover</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         .centered {
@@ -107,7 +107,16 @@
     </div>
     <div class="centered" style="margin-bottom: 10px;">
         <label for="subjects" style="margin-right: 5px;">Select a subject:</label>
-        <select id="genreCombo" style="margin-left: 5px;"></select>
+        <select id="genreCombo" style="margin-left: 5px;">
+            <option value="action">Action</option>
+            <option value="comedy">Comedy</option>
+            <option value="drama">Drama</option>
+            <option value="fantasy">Fantasy</option>
+            <option value="horror">Horror</option>
+            <option value="romance">Romance</option>
+            <option value="science+fiction">Science Fiction</option>
+            <option value="young+adult">Young Adult</option>
+        </select>
     </div>
     <div class="cover-container" style="margin-bottom: 10px;">
         <button id="likeButton"></button>
@@ -140,50 +149,102 @@
             </a>
         </p>
     </div>
-
     <script>
-        let seenBooks = new Set();
-        let currentPage = 1;
-        const booksPerPage = 100;
-        let totalBooks = 0;
-        let currentISBN = null; // Variable to store the ISBN
-        // Get a reference to the select element
-        var genreCombo = document.getElementById("genreCombo");
+        var workCount = null; // Global variable for storing the work count
+        var storedBooks = []; // Global variable for storing books
+        var usedIndexes = []; // Global array to keep track of used offsets
+        let randomBook = null; // Declare randomBook as a global variable
+        let bookIndexToRemove = null;
+        let encodedGenre = ''; // Declare encodedGenre as a global variable
+        let moreInfo = null;
 
-        function getRandomBook() {
-            if (totalBooks > 0 && seenBooks.size === totalBooks) {
-                console.log('All books seen, resetting set.');
-                seenBooks.clear();
-                currentPage = 1;
+        function addRandomInteger() {
+            const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
+
+            // Calculate the minimum and maximum multiples of 15 within the range
+            const minMultiple = Math.ceil(lastElement / 15) * 15 + 15;
+            const maxMultiple = Math.floor(workCount / 15) * 15;
+
+            // Check if the range is valid
+            if (minMultiple > maxMultiple) {
+                console.log('Invalid range');
+                return null;
             }
 
-            const startIndex = (currentPage - 1) * booksPerPage;
-            const selectedGenre = document.getElementById('genreCombo').value;
-            const encodedGenre = selectedGenre.replace(/\s/g, '%20'); // Replace spaces with %20
-            const url = `https://openlibrary.org/search.json?q=subject:${encodedGenre}&limit=${booksPerPage}&start=${startIndex}`;
+            // Calculate the number of possible multiples
+            const numMultiples = Math.floor((maxMultiple - minMultiple) / 15) + 1;
 
-            return fetch(url)
+            // Generate a random index based on the number of multiples
+            const randomIndex = Math.floor(Math.random() * numMultiples);
+
+            // Calculate the selected multiple using the random index
+            const randomMultiple = minMultiple + randomIndex * 15;
+
+            usedIndexes.push(randomMultiple);
+
+            return randomMultiple;
+        }
+
+        // Function to retrieve the work count
+        function getWorkCount(encodedGenre) {
+            const loaderContainer = document.querySelector('.loader-container');
+            loaderContainer.style.display = 'flex';
+            // Call the Open Library API to get the work count
+            fetch(`https://openlibrary.org/subjects/${encodedGenre}.json?limit=1`)
                 .then(response => response.json())
                 .then(data => {
-                    totalBooks = data.numFound;
-                    const books = data.docs.filter(book => !seenBooks.has(book.key));
-                    if (books.length === 0) {
-                        console.log('No unseen books found on the current page.');
-                        currentPage++;
-                        return getRandomBook();
-                    }
-                    const randomIndex = Math.floor(Math.random() * books.length);
-                    const randomBook = books[randomIndex];
-                    seenBooks.add(randomBook.key);
-                    return randomBook;
+                    // Store the result from work_count as a global variable
+                    workCount = data.work_count;
+                    // Hide the loader container after the async operation is complete
+                    loaderContainer.style.display = 'none';
+                })
+                .catch(error => console.log(error));
+        }
+
+        // Function to retrieve a random book
+        function getRandomBook(encodedGenre) {
+            const newInteger = addRandomInteger();
+            const loaderContainer = document.querySelector('.loader-container');
+            loaderContainer.style.display = 'flex';
+
+            // Call the Open Library API to get 15 random books
+            return fetch(`https://openlibrary.org/subjects/${encodedGenre}.json?limit=15&offset=${newInteger}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Store the JSON results horizontally in the storedBooks array
+                    storedBooks = data.works.map(work => ({
+                        work_id: work.key.replace('/works/', ''),
+                        first_publish_year: work.first_publish_year,
+                        author_name: work.authors[0]?.name || 'Unknown Author',
+                        title: work.title,
+                        isbn: work.isbn,
+                        cover_id: work.cover_id
+                    }));
+
+                    // Fetch descriptions for each stored book using the Open Library Works API
+                    const descriptionPromises = storedBooks.map(book =>
+                        fetch(`https://openlibrary.org/works/${book.work_id}.json`)
+                            .then(response => response.json())
+                            .then(workData => {
+                                book.description = workData.description ? workData.description.value : 'No description available';
+                                return book;
+                            })
+                    );
+
+                    // Wait for all description promises to resolve
+                    return Promise.all(descriptionPromises)
+                        .then(updatedStoredBooks => {
+                            // Hide the loader container after the async operations are complete
+                            loaderContainer.style.display = 'none';
+                            return updatedStoredBooks;
+                        });
                 })
                 .catch(error => {
-                    console.error(error);
+                    console.log(error);
                 });
         }
 
-        function updateBookDetails() {
-            const loaderContainer = document.querySelector('.loader-container');
+        function updateBookDetails(moreInfo) {
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
             const authorLabel = $('#authorLabel');
@@ -191,35 +252,56 @@
             const amazonImg = $('#amazonImg a');
             const goodReadsImg = $('#goodReadsImg a');
 
-            loaderContainer.style.display = 'flex';
-
-            if (!currentISBN) {
-                getRandomBook()
-                    .then(book => {
-                        const isbn = book.isbn?.[0] || null;
-                        currentISBN = isbn ? (isbn.length === 13 ? isbn.substring(3) : isbn) : null;
-                        $('#coverImage').css('background-image', `url(${book.cover_i ? 'https://covers.openlibrary.org/b/id/' + book.cover_i + '-M.jpg' : 'https://www.alexpatten.me/wp-content/themes/personalias/img/thumb-large.png'})`);
-                        titleLabel.text(`Title: ${book.title || 'Unknown'}`);
-                        authorLabel.text(`Author: ${book.author_name || 'Unknown'}`);
-                        descriptionLabel.text('');
-                        pagesLabel.text('');
-                        amazonImg.removeAttr('href');
-                        goodReadsImg.removeAttr('href');
-
-                        // Hide the loader container after the async operation is complete
-                        loaderContainer.style.display = 'none';
+            // Check if storedBooks is empty
+            if (storedBooks.length === 0) {
+                getRandomBook(encodedGenre)
+                    .then(() => {
+                        updateBookDetails();
+                    })
+                    .catch(error => {
+                        console.log(error);
                     });
+                return; // Exit the function to prevent further execution
+            }
+
+            // Select a random book from storedBooks
+            const randomIndex = Math.floor(Math.random() * storedBooks.length);
+            const randomBook = storedBooks[randomIndex];
+
+            // If more information is false
+            if (!moreInfo) {
+                bookIndexToRemove = randomIndex;
+                amazonImg.removeAttr('href');
+                goodReadsImg.removeAttr('href');
+
+                // Check if first_publish_year is null or prior to 1965
+                if (!randomBook.first_publish_year || randomBook.first_publish_year < 1965) {
+                    // Delete the book from storedBooks
+                    storedBooks.splice(randomIndex, 1);
+                    updateBookDetails(); // Recursive call to updateBookDetails
+                    return; // Exit the function to prevent further execution
+                }
+
+                titleLabel.text(`Title: ${randomBook.title}`);
+                authorLabel.text(`Author: ${randomBook.author_name}`);
+
+                const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                updateCoverImage(coverImageUrl);
+                // If more information is true
             } else {
-                updateInfo();
-                const title = encodeURIComponent(`"${titleLabel.text().trim().replace('Title: ', '')}"`); // Encode the title
-                const author = encodeURIComponent(`"${authorLabel.text().trim().replace('Author: ', '')}"`); // Encode the author
+                const title = encodeURIComponent(`"${titleLabel.text().trim().replace('Title: ', '')}"`);
+                const author = encodeURIComponent(`"${authorLabel.text().trim().replace('Author: ', '')}"`);
                 const amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
                 const goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
-                // Add href to anchor tags
-                amazonImg.attr('href', amazonUrl).attr('target', '_blank');
-                goodReadsImg.attr('href', goodreadsUrl).attr('target', '_blank');
+                amazonImg.html(`<a href="${amazonUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image" style="width: 440px; height: 140px; margin-bottom: 10px;"></a>`);
+                goodReadsImg.html(`<a href="${goodreadsUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image" style="width: 256px; height: 170px; margin-bottom: 10px;"></a>`);
+                // Add description from randomBook to descriptionLabel
+                descriptionLabel.text(`Description: ${randomBook.description}`);
 
-                currentISBN = null;
+                // Remove the book from storedBooks using the stored index
+                if (bookIndexToRemove > -1) {
+                    storedBooks.splice(bookIndexToRemove, 1);
+                }
             }
 
             $('#coverImage').removeClass('hidden');
@@ -227,72 +309,66 @@
             $('#xButton').removeClass('hidden');
         }
 
+        // Function to update the cover image
+        function updateCoverImage(imageUrl) {
+            const coverImageBox = $('#coverImageBox');
+            const coverImage = $('#coverImage');
 
-        // Add an event listener to the select element
-        genreCombo.addEventListener("change", function () {
-            // Update currentISBN to null when the select element is changed
-            currentISBN = null;
-            // Call the updateBook function
-            updateBookDetails();
-        });
+            // Set the background image of the coverImageBox
+            coverImageBox.css('background-image', `url(${imageUrl})`);
 
-        function updateInfo() {
-            const loaderContainer = document.querySelector('.loader-container');
-            if (currentISBN) {
-                // Make a request to Google Books API to fetch book details based on ISBN
-                const googleBooksUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${currentISBN}`;
-
-                fetch(googleBooksUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.totalItems > 0) {
-                            const volumeInfo = data.items[0].volumeInfo;
-                            const description = volumeInfo.description || 'None';
-                            const pageCount = volumeInfo.pageCount || 'Unknown'; // Retrieve the number of pages
-                            const previewLink = volumeInfo.previewLink || null; // Retrieve the previewLink
-
-                            $('#descriptionLabel').text(`Description: ${description}`);
-                            $('#pagesLabel').text(`Pages: ${pageCount}`); // Update the pagesLabel
-                            $('#googleImg a').attr('href', previewLink).attr('target', '_blank'); // Update href of googleImg with previewLink
-                        } else {
-                            $('#descriptionLabel').text('Description: None');
-                            $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown'
-                            $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
-                        }
-
-                        // Hide the loader container after the async operation is complete
-                        loaderContainer.style.display = 'none';
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        $('#descriptionLabel').text('Description: None');
-                        $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' in case of an error
-                        $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
-                        // Hide the loader container after the async operation is complete
-                        loaderContainer.style.display = 'none';
-                    });
-            } else {
-                $('#descriptionLabel').text('Description: None');
-                $('#pagesLabel').text('Pages: Unknown'); // Set pagesLabel to 'Unknown' when currentISBN is empty
-                $('#googleImg a').removeAttr('href'); // Remove href from googleImg if book not found
-
-                // Hide the loader container after the async operation is complete
-                loaderContainer.style.display = 'none';
-            }
+            // Stretch the cover image to fit inside the coverImageBox
+            coverImage.css({
+                'background-image': `url(${imageUrl})`,
+                'background-size': 'cover',
+                'background-position': 'center',
+            });
         }
 
         $(document).ready(function () {
-            updateBookDetails(); // Call the function on page load
+            function updateOnGenreChange() {
+                moreInfo = false;
+                const genreCombo = document.getElementById('genreCombo');
+                const selectedGenre = genreCombo.value;
+                encodedGenre = selectedGenre.replace(/\s/g, '%20');
+
+                getWorkCount(encodedGenre); // Call getWorkCount when genreCombo is changed
+                getRandomBook(encodedGenre).then(() => {
+                    // Call updateBookDetails when genreCombo is changed
+                    updateBookDetails(false);
+                });
+            }
+
+            // Call updateOnGenreChange on page load
+            updateOnGenreChange();
+
+            $('#genreCombo').on('change', updateOnGenreChange);
 
             $('#likeButton').on('click', function () {
-                updateBookDetails(); // Call the function when the button is clicked
+                if (moreInfo === null) {
+                    updateBookDetails(true); // Call the function when the button is clicked
+                    moreInfo = false;
+                }
+                else if (moreInfo) {
+                    updateBookDetails(true); // Call the function when the button is clicked
+                    moreInfo = false;
+                }
+                else {
+                    $('#descriptionLabel').text(''); // Clear the descriptionLabel
+                    updateBookDetails(false); // Call the function when the button is clicked
+                    moreInfo = true;
+                }
             });
         });
 
         $('#xButton').on('click', function () {
-            currentISBN = null;
+            moreInfo = true;
             $('#descriptionLabel').text(''); // Clear the descriptionLabel
-            updateBookDetails();
+            // Remove the book from storedBooks using the stored index
+            if (bookIndexToRemove > -1) {
+                storedBooks.splice(bookIndexToRemove, 1);
+            }
+            updateBookDetails(false);
             $('#coverImage').addClass('hidden');
             $('#likeButton').removeClass('hidden');
             $('#xButton').addClass('hidden');
@@ -330,6 +406,7 @@
         $('#xButton').css({
             'margin-left': '10px',
         });
+
     </script>
 </body>
 
