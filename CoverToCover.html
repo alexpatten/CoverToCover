@@ -158,6 +158,9 @@
         let encodedGenre = ''; // Declare encodedGenre as a global variable
         let moreInfo = false;
         let updateDescription = null;
+        let coverChange = false;
+        let updateCoverChange = false;
+        let googleCoverImageUrl = null;
 
         function addRandomInteger() {
             const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
@@ -226,17 +229,36 @@
                     // Fetch descriptions for each stored book using the Open Library Works API
                     const descriptionPromises = storedBooks.map((book, index) => {
                         if (book.description === '') { // Check if the description is empty
-                            const encodedTitle = encodeURIComponent(book.title);
-                            const encodedAuthor = encodeURIComponent(book.author_name);
-
-                            // Call the Google Books API using the title and author
-                            return fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodedTitle}+inauthor:${encodedAuthor}`)
+                            // Call the Open Library Works API using the work_id
+                            return fetch(`https://openlibrary.org/works/${book.work_id}.json`)
                                 .then(response => response.json())
                                 .then(data => {
                                     // Extract the description from the API response if available
-                                    const description = data.items[0]?.volumeInfo?.description;
-                                    storedBooks[index].description = description || 'No description available';
-                                    return storedBooks[index];
+                                    const description = data.description?.value;
+                                    storedBooks[index].description = description || '';
+
+                                    // If the description is still blank, search for it using the Google Books API
+                                    if (storedBooks[index].description === '') {
+                                        const encodedTitle = encodeURIComponent(book.title);
+                                        const encodedAuthor = encodeURIComponent(book.author_name);
+
+                                        // Call the Google Books API using the title and author
+                                        return fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodedTitle}+inauthor:${encodedAuthor}`)
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                // Extract the description from the API response if available
+                                                const description = data.items[0]?.volumeInfo?.description;
+                                                storedBooks[index].description = description || 'No description available';
+                                                return storedBooks[index];
+                                            })
+                                            .catch(error => {
+                                                console.log(error);
+                                                storedBooks[index].description = 'No description available';
+                                                return book;
+                                            });
+                                    } else {
+                                        return storedBooks[index];
+                                    }
                                 })
                                 .catch(error => {
                                     console.log(error);
@@ -254,12 +276,16 @@
                             loaderContainer.style.display = 'none';
                             return updatedStoredBooks;
                         });
+
                 })
                 .catch(error => {
                     console.log(error);
                 });
         }
 
+        // This function is used to update the title, author, cover image, and description using storedBooks array.
+        // The function chooses a random index from storedBooks and then removes it depending on user input.
+        // When storedBooks is empty, the function will call getRandomBook to add more books to the array.
         function updateBookDetails(myBool) {
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
@@ -282,7 +308,7 @@
 
             // Select a random book from storedBooks
             const randomIndex = Math.floor(Math.random() * storedBooks.length);
-            const randomBook = storedBooks[randomIndex];
+            randomBook = storedBooks[randomIndex];
 
             // If more information is false
             if (!myBool) {
@@ -304,6 +330,8 @@
                 const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
                 updateCoverImage(coverImageUrl);
 
+                updateCoverChange = false;
+
                 updateDescription = randomBook.description
             } else {
                 const title = encodeURIComponent(`"${randomBook.title}"`);
@@ -324,6 +352,53 @@
             $('#coverImage').removeClass('hidden');
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
+        }
+
+        function ChangeCoverSrc() {
+            if (coverChange) {
+                const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                updateCoverImage(coverImageUrl);
+                coverChange = false;
+                return;
+            }
+            else {
+                coverChange = true;
+                if (updateCoverChange) {
+                    // Call the updateCoverImage function with the retrieved cover image URL
+                    updateCoverImage(googleCoverImageUrl);
+                    return;
+                }
+                else {
+                    updateCoverChange = true;
+                }
+            }
+
+            const loaderContainer = document.querySelector('.loader-container');
+            loaderContainer.style.display = 'flex';
+
+            const authorName = randomBook.author_name;
+            const title = randomBook.title;
+
+            // Construct the Google Books API URL
+            const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(authorName)}`;
+
+            // Fetch data from the API
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Extract the cover image URL from the API response
+                    googleCoverImageUrl = data.items[0].volumeInfo.imageLinks.thumbnail;
+
+                    // Call the updateCoverImage function with the retrieved cover image URL
+                    updateCoverImage(googleCoverImageUrl);
+                    loaderContainer.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                    googleCoverImageUrl = coverImageUrl;
+                    loaderContainer.style.display = 'none';
+                });
         }
 
         // Function to update the cover image
@@ -422,6 +497,9 @@
         $('#xButton').css({
             'margin-left': '10px',
         });
+
+        // Add a click event listener
+        (document.getElementById('coverImageBox')).addEventListener('click', ChangeCoverSrc);
 
     </script>
 </body>
