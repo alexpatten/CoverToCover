@@ -395,6 +395,8 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                    googleCoverImageUrl = coverImageUrl;
                     loaderContainer.style.display = 'none';
                 });
         }
