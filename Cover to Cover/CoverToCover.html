@@ -226,17 +226,36 @@
                     // Fetch descriptions for each stored book using the Open Library Works API
                     const descriptionPromises = storedBooks.map((book, index) => {
                         if (book.description === '') { // Check if the description is empty
-                            const encodedTitle = encodeURIComponent(book.title);
-                            const encodedAuthor = encodeURIComponent(book.author_name);
-
-                            // Call the Google Books API using the title and author
-                            return fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodedTitle}+inauthor:${encodedAuthor}`)
+                            // Call the Open Library Works API using the work_id
+                            return fetch(`https://openlibrary.org/works/${book.work_id}.json`)
                                 .then(response => response.json())
                                 .then(data => {
                                     // Extract the description from the API response if available
-                                    const description = data.items[0]?.volumeInfo?.description;
-                                    storedBooks[index].description = description || 'No description available';
-                                    return storedBooks[index];
+                                    const description = data.description?.value;
+                                    storedBooks[index].description = description || '';
+
+                                    // If the description is still blank, search for it using the Google Books API
+                                    if (storedBooks[index].description === '') {
+                                        const encodedTitle = encodeURIComponent(book.title);
+                                        const encodedAuthor = encodeURIComponent(book.author_name);
+
+                                        // Call the Google Books API using the title and author
+                                        return fetch(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodedTitle}+inauthor:${encodedAuthor}`)
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                // Extract the description from the API response if available
+                                                const description = data.items[0]?.volumeInfo?.description;
+                                                storedBooks[index].description = description || 'No description available';
+                                                return storedBooks[index];
+                                            })
+                                            .catch(error => {
+                                                console.log(error);
+                                                storedBooks[index].description = 'No description available';
+                                                return book;
+                                            });
+                                    } else {
+                                        return storedBooks[index];
+                                    }
                                 })
                                 .catch(error => {
                                     console.log(error);
@@ -254,11 +273,13 @@
                             loaderContainer.style.display = 'none';
                             return updatedStoredBooks;
                         });
+
                 })
                 .catch(error => {
                     console.log(error);
                 });
         }
+
 
         function updateBookDetails(myBool) {
             const titleLabel = $('#titleLabel');
