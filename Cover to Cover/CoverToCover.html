@@ -158,6 +158,9 @@
         let encodedGenre = ''; // Declare encodedGenre as a global variable
         let moreInfo = false;
         let updateDescription = null;
+        let coverChange = false;
+        let updateCoverChange = false;
+        let googleCoverImageUrl = null;
 
         function addRandomInteger() {
             const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
@@ -280,7 +283,9 @@
                 });
         }
 
-
+        // This function is used to update the title, author, cover image, and description using storedBooks array.
+        // The function chooses a random index from storedBooks and then removes it depending on user input.
+        // When storedBooks is empty, the function will call getRandomBook to add more books to the array.
         function updateBookDetails(myBool) {
             const titleLabel = $('#titleLabel');
             const descriptionLabel = $('#descriptionLabel');
@@ -303,7 +308,7 @@
 
             // Select a random book from storedBooks
             const randomIndex = Math.floor(Math.random() * storedBooks.length);
-            const randomBook = storedBooks[randomIndex];
+            randomBook = storedBooks[randomIndex];
 
             // If more information is false
             if (!myBool) {
@@ -325,6 +330,8 @@
                 const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
                 updateCoverImage(coverImageUrl);
 
+                updateCoverChange = false;
+
                 updateDescription = randomBook.description
             } else {
                 const title = encodeURIComponent(`"${randomBook.title}"`);
@@ -345,6 +352,51 @@
             $('#coverImage').removeClass('hidden');
             $('#likeButton').addClass('hidden');
             $('#xButton').removeClass('hidden');
+        }
+
+        function ChangeCoverSrc() {
+            if (coverChange) {
+                const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                updateCoverImage(coverImageUrl);
+                coverChange = false;
+                return;
+            }
+            else {
+                coverChange = true;
+                if (updateCoverChange) {
+                    // Call the updateCoverImage function with the retrieved cover image URL
+                    updateCoverImage(googleCoverImageUrl);
+                    return;
+                }
+                else {
+                    updateCoverChange = true;
+                }
+            }
+
+            const loaderContainer = document.querySelector('.loader-container');
+            loaderContainer.style.display = 'flex';
+
+            const authorName = randomBook.author_name;
+            const title = randomBook.title;
+
+            // Construct the Google Books API URL
+            const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(authorName)}`;
+
+            // Fetch data from the API
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Extract the cover image URL from the API response
+                    googleCoverImageUrl = data.items[0].volumeInfo.imageLinks.thumbnail;
+
+                    // Call the updateCoverImage function with the retrieved cover image URL
+                    updateCoverImage(googleCoverImageUrl);
+                    loaderContainer.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    loaderContainer.style.display = 'none';
+                });
         }
 
         // Function to update the cover image
@@ -443,6 +495,9 @@
         $('#xButton').css({
             'margin-left': '10px',
         });
+
+        // Add a click event listener
+        (document.getElementById('coverImageBox')).addEventListener('click', ChangeCoverSrc);
 
     </script>
 </body>
