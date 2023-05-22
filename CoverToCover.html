@@ -160,7 +160,10 @@
         let updateDescription = null;
         let coverChange = false;
         let updateCoverChange = false;
+        let olCoverImageUrl = null;
         let googleCoverImageUrl = null;
+        let amazonUrl = null;
+        let goodreadsUrl = null;
 
         function addRandomInteger() {
             const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
@@ -317,32 +320,30 @@
                 goodReadsImg.removeAttr('href');
 
                 // Check if first_publish_year is null or prior to 1965
-                if (!randomBook.first_publish_year || randomBook.first_publish_year < 1965) {
+                /*if (!randomBook.first_publish_year || randomBook.first_publish_year < 1965) {
                     // Delete the book from storedBooks
                     storedBooks.splice(randomIndex, 1);
                     updateBookDetails(); // Recursive call to updateBookDetails
                     return; // Exit the function to prevent further execution
-                }
+                }*/
 
                 titleLabel.text(`Title: ${randomBook.title}`);
                 authorLabel.text(`Author: ${randomBook.author_name}`);
 
                 const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                olCoverImageUrl = coverImageUrl;
                 updateCoverImage(coverImageUrl);
-
                 updateCoverChange = false;
-
                 updateDescription = randomBook.description
-            } else {
                 const title = encodeURIComponent(`"${randomBook.title}"`);
                 const author = encodeURIComponent(`"${randomBook.author_name}"`);
-                const amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
-                const goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
+                amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
+                goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
+            } else {
                 amazonImg.html(`<a href="${amazonUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image" style="width: 440px; height: 140px; margin-bottom: 10px;"></a>`);
                 goodReadsImg.html(`<a href="${goodreadsUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image" style="width: 256px; height: 170px; margin-bottom: 10px;"></a>`);
                 // Add description from randomBook to descriptionLabel
                 descriptionLabel.text(`Description: ${updateDescription}`);
-
                 // Remove the book from storedBooks using the stored index
                 if (bookIndexToRemove > -1) {
                     storedBooks.splice(bookIndexToRemove, 1);
@@ -356,8 +357,7 @@
 
         function ChangeCoverSrc() {
             if (coverChange) {
-                const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
-                updateCoverImage(coverImageUrl);
+                updateCoverImage(olCoverImageUrl);
                 coverChange = false;
                 return;
             }
@@ -376,8 +376,8 @@
             const loaderContainer = document.querySelector('.loader-container');
             loaderContainer.style.display = 'flex';
 
-            const authorName = randomBook.author_name;
-            const title = randomBook.title;
+            const authorName = $('#authorLabel').text().replace("Author: ", "");
+            const title = $('#titleLabel').text().replace("Title: ", "");
 
             // Construct the Google Books API URL
             const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(authorName)}`;
@@ -388,15 +388,13 @@
                 .then(data => {
                     // Extract the cover image URL from the API response
                     googleCoverImageUrl = data.items[0].volumeInfo.imageLinks.thumbnail;
-
                     // Call the updateCoverImage function with the retrieved cover image URL
                     updateCoverImage(googleCoverImageUrl);
                     loaderContainer.style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
-                    googleCoverImageUrl = coverImageUrl;
+                    googleCoverImageUrl = null;
                     loaderContainer.style.display = 'none';
                 });
         }
@@ -424,6 +422,7 @@
 
         $(document).ready(function () {
             function updateOnGenreChange() {
+                usedIndexes = [];
                 storedBooks = [];
                 moreInfo = true;
                 const genreCombo = document.getElementById('genreCombo');
