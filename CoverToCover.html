@@ -23,34 +23,123 @@
         }
 
         #likeButton {
-            background-color: #008000;
-            color: white;
-            border-radius: 50%;
+            display: flex;
             position: absolute;
             top: calc(50% - 25px);
             left: calc(80%);
-            width: 65px;
-            height: 65px;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 22px 20px 22px;
+            box-shadow: rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
+            background-color: #e8e8e8;
+            border-color: #e4ffe2;
+            border-style: solid;
+            border-width: 9px;
+            border-radius: 35px;
+            transition: transform 400ms cubic-bezier(.68, -0.55, .27, 2.5),
+                border-color 400ms ease-in-out,
+                background-color 400ms ease-in-out;
+            word-spacing: -2px;
         }
 
-        #likeButton:before {
-            content: "\2665";
-            font-size: 48px;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        @keyframes movingBorders {
+            0% {
+                border-color: #e4fce4;
+            }
+
+            50% {
+                border-color: #d8ffdd;
+            }
+
+            90% {
+                border-color: #e4fce4;
+            }
+        }
+
+        #likeButton:hover {
+            background-color: #57d862;
+            transform: scale(105%);
+            animation: movingBorders 3s infinite;
+        }
+
+        #likeButton svg {
+            fill: rgb(110, 255, 141);
+        }
+
+        @keyframes beatingHeart {
+            0% {
+                transform: scale(1);
+            }
+
+            15% {
+                transform: scale(1.15);
+            }
+
+            30% {
+                transform: scale(1);
+            }
+
+            45% {
+                transform: scale(1.15);
+            }
+
+            60% {
+                transform: scale(1);
+            }
+        }
+
+        #likeButton:hover svg {
+            animation: beatingHeart 2s infinite;
+        }
+
+        @keyframes xMovingBorders {
+            0% {
+                border-color: #fce4e4;
+            }
+
+            50% {
+                border-color: #ffd8d8;
+            }
+
+            90% {
+                border-color: #fce4e4;
+            }
         }
 
         #xButton {
-            background-color: #FF4500;
-            color: white;
-            border-radius: 50%;
+            display: flex;
             position: absolute;
+            background-color: #FF4500;
+            color: rgb(247, 88, 88);
+            border-radius: 50%;
             top: calc(50% - 25px);
             right: calc(80% + 10px);
-            width: 65px;
-            height: 65px;
+            justify-content: center;
+            align-items: center;
+            padding: 21px 29px 21px 29px;
+            box-shadow: rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
+            background-color: #e8e8e8;
+            border-color: #ffe2e2;
+            border-style: solid;
+            border-width: 9px;
+            border-radius: 35px;
+            transition: transform 400ms cubic-bezier(.68, -0.55, .27, 2.5),
+                border-color 400ms ease-in-out,
+                background-color 400ms ease-in-out;
+            word-spacing: -2px;
+        }
+
+        #xButton svg.filled {
+            transform: translate(-50%, -50%);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+        }
+
+        #xButton:hover {
+            background-color: #eba6a6;
+            transform: scale(105%);
+            animation: xMovingBorders 3s infinite;
         }
 
         .cover-container.liked #xButton {
@@ -119,9 +208,20 @@
         </select>
     </div>
     <div class="cover-container" style="margin-bottom: 10px;">
-        <button id="likeButton"></button>
+        <button id="likeButton">
+            <svg height="32" width="32" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 0H24V24H0z" fill="none"></path>
+                <path
+                    d="M16.5 3C19.538 3 22 5.5 22 9c0 7-7.5 11-10 12.5C9.5 20 2 16 2 9c0-3.5 2.5-6 5.5-6C9.36 3 11 4 12 5c1-1 2.64-2 4.5-2z">
+                </path>
+            </svg>
+        </button>
         <div id="coverImage"></div>
-        <button id="xButton" style="font-size: 24px; font-weight: bold;">X</button>
+        <button id="xButton"
+            style="font-size: 24px; font-weight: bold; display: flex; justify-content: center; align-items: center;">
+            X
+            <svg class="filled" height="32" width="32" viewBox="0 0 24 24"></svg>
+        </button>
     </div>
     <div class="text-container">
         <h3 id="titleLabel"></h3>
@@ -160,7 +260,10 @@
         let updateDescription = null;
         let coverChange = false;
         let updateCoverChange = false;
+        let olCoverImageUrl = null;
         let googleCoverImageUrl = null;
+        let amazonUrl = null;
+        let goodreadsUrl = null;
 
         function addRandomInteger() {
             const lastElement = usedIndexes.length > 0 ? usedIndexes[usedIndexes.length - 1] : -15;
@@ -317,32 +420,30 @@
                 goodReadsImg.removeAttr('href');
 
                 // Check if first_publish_year is null or prior to 1965
-                if (!randomBook.first_publish_year || randomBook.first_publish_year < 1965) {
+                /*if (!randomBook.first_publish_year || randomBook.first_publish_year < 1965) {
                     // Delete the book from storedBooks
                     storedBooks.splice(randomIndex, 1);
                     updateBookDetails(); // Recursive call to updateBookDetails
                     return; // Exit the function to prevent further execution
-                }
+                }*/
 
                 titleLabel.text(`Title: ${randomBook.title}`);
                 authorLabel.text(`Author: ${randomBook.author_name}`);
 
                 const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
+                olCoverImageUrl = coverImageUrl;
                 updateCoverImage(coverImageUrl);
-
                 updateCoverChange = false;
-
                 updateDescription = randomBook.description
-            } else {
                 const title = encodeURIComponent(`"${randomBook.title}"`);
                 const author = encodeURIComponent(`"${randomBook.author_name}"`);
-                const amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
-                const goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
+                amazonUrl = `https://www.amazon.com/s?k=${title}+${author}`.replace(/ /g, '+');
+                goodreadsUrl = `https://www.goodreads.com/search?q=${title}+${author}`.replace(/ /g, '+');
+            } else {
                 amazonImg.html(`<a href="${amazonUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/amazon.png" alt="Amazon Image" style="width: 440px; height: 140px; margin-bottom: 10px;"></a>`);
                 goodReadsImg.html(`<a href="${goodreadsUrl}" target="_blank"><img src="http://www.alexpatten.me/wp-content/uploads/2023/05/goodreads.png" alt="Goodreads Image" style="width: 256px; height: 170px; margin-bottom: 10px;"></a>`);
                 // Add description from randomBook to descriptionLabel
                 descriptionLabel.text(`Description: ${updateDescription}`);
-
                 // Remove the book from storedBooks using the stored index
                 if (bookIndexToRemove > -1) {
                     storedBooks.splice(bookIndexToRemove, 1);
@@ -356,8 +457,7 @@
 
         function ChangeCoverSrc() {
             if (coverChange) {
-                const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
-                updateCoverImage(coverImageUrl);
+                updateCoverImage(olCoverImageUrl);
                 coverChange = false;
                 return;
             }
@@ -376,8 +476,8 @@
             const loaderContainer = document.querySelector('.loader-container');
             loaderContainer.style.display = 'flex';
 
-            const authorName = randomBook.author_name;
-            const title = randomBook.title;
+            const authorName = $('#authorLabel').text().replace("Author: ", "");
+            const title = $('#titleLabel').text().replace("Title: ", "");
 
             // Construct the Google Books API URL
             const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(title)}+inauthor:${encodeURIComponent(authorName)}`;
@@ -388,15 +488,13 @@
                 .then(data => {
                     // Extract the cover image URL from the API response
                     googleCoverImageUrl = data.items[0].volumeInfo.imageLinks.thumbnail;
-
                     // Call the updateCoverImage function with the retrieved cover image URL
                     updateCoverImage(googleCoverImageUrl);
                     loaderContainer.style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    const coverImageUrl = `https://covers.openlibrary.org/b/id/${randomBook.cover_id}-L.jpg`;
-                    googleCoverImageUrl = coverImageUrl;
+                    googleCoverImageUrl = null;
                     loaderContainer.style.display = 'none';
                 });
         }
@@ -424,6 +522,7 @@
 
         $(document).ready(function () {
             function updateOnGenreChange() {
+                usedIndexes = [];
                 storedBooks = [];
                 moreInfo = true;
                 const genreCombo = document.getElementById('genreCombo');
